@@ -9,6 +9,10 @@ from __future__ import annotations
 from game_board import GameBoard, Location
 from typing import Optional, Callable
 from player import Player
+from common_values import (
+    EMPTY, MAX_PLAYER, MIN_PLAYER, RED, RED_MARKER, YELLOW, YELLOW_MARKER,
+    COLOR_NAMES)
+from typing import Optional, List
 
 
 def heuristic(board: GameBoard) -> float:
@@ -28,17 +32,28 @@ def heuristic(board: GameBoard) -> float:
     is more conclusive than a terminal state (which it can't be).
     """
 
-    # This very silly heuristic just adds up all the 1s, -1s, and 0s
-    # stored internally on the board, and then normalizes the result.
-    sum = 0
-    for row in range(1, board.size+1):
-        for column in range(1, board.size+1):
-            # The grid is stored as a numpy array for speed, so access
-            # individual items (if you need to) via a comma as below
-            sum += board.grid[row, column]
+    '''
+    My idea is calculate number of possible moves of each players. Then who has more 
+    possible moves  will be more likely to win
+    '''
+    # Get active player
+    active_player = board.get_active_player()
 
-    maximum_magnitude = board.size**2
-    return sum / maximum_magnitude
+    # If max_player plays:
+    if (active_player == 1):
+        num_legal_moves_for_max_player = len(board.get_legal_moves())
+        num_legal_moves_for_min_player = len(
+            get_legal_moves_for_other_player(board))
+
+    else:
+        num_legal_moves_for_max_player = len(
+            get_legal_moves_for_other_player(board))
+        num_legal_moves_for_min_player = len(board.get_legal_moves())
+
+    if num_legal_moves_for_max_player + num_legal_moves_for_min_player <= 0:
+        return 0
+    # Our formula (difference between move)/(total of moves)
+    return (num_legal_moves_for_max_player-num_legal_moves_for_min_player)/(num_legal_moves_for_max_player+num_legal_moves_for_min_player)
 
 
 class MinimaxPlayer(Player):
@@ -51,4 +66,100 @@ class MinimaxPlayer(Player):
         self.plies = plies
 
     def choose_move(self, board: GameBoard) -> Optional[Location]:
-        raise NotImplementedError("You must implement this method")
+        # Get player
+        player = board.get_active_player()
+        # If player 1, plays max_value
+        if player == 1:
+            _, move = self.max_value_alpha_belta_pruning(
+                self.plies, board, float("-inf"), float("inf"))
+        else:
+            _, move = self.min_value_alpha_beta_pruning(
+                self.plies, board, float("-inf"), float("inf"))
+        return move
+
+    def max_value_alpha_belta_pruning(self, depth, board, alpha, beta):
+        # Value of the Node
+        value = heuristic(board)
+        # List of possible move
+        list_moves = board.get_legal_moves()
+
+        v, new_move = float("-inf"), None
+        v2 = float("-inf")
+
+        for move in list_moves:
+            temp_board = board.copy()
+            new_board = temp_board.make_move(move)
+            # If there is more plies
+            if depth > 0:
+                v2, a2 = self.min_value_alpha_beta_pruning(
+                    depth-1, new_board, alpha, beta)
+            # If there is no plies
+            else:
+                v2 = value
+            if v2 > v:
+                v, new_move = v2, move
+                alpha = max(alpha, v)
+            if v >= beta:
+                return v, new_move
+        return v, new_move
+
+    def min_value_alpha_beta_pruning(self, depth, board, alpha, beta):
+        # Value of the Node
+        value = heuristic(board)
+        # List of possible move
+        list_moves = board.get_legal_moves()
+        v, new_move = float("inf"), None
+        v2 = float("inf")
+
+        for move in list_moves:
+            temp_board = board.copy()
+            new_board = temp_board.make_move(move)
+            # If there is more plies
+            if depth > 0:
+                v2, a2 = self.max_value_alpha_belta_pruning(
+                    depth-1, new_board, alpha, beta)
+            # If there is no plies
+            else:
+                v2 = value
+            if v2 < v:
+                v, new_move = v2, move
+                beta = min(beta, v)
+            if v <= alpha:
+                return v, new_move
+        return v, new_move
+
+
+def is_legal_move_for_other_player(board, location) -> bool:
+    ''' Returns whether or not move is legal.'''
+    row = location.row
+    col = location.column
+    piece = -board.get_active_player()
+
+    # A move cannot be made if a piece is already there.
+    if board.grid[row][col] != EMPTY:
+        return False
+
+    # A move cannot be made if the piece "value" is not red or yellow.
+    if piece != YELLOW and piece != RED:
+        return False
+
+    # Extra restrictions once initial stage is over
+    if (board.in_second_stage() and
+            board.num_adjacent_friendlies(location, piece) < 2):
+        return False
+
+    return True
+
+
+def get_legal_moves_for_other_player(board) -> List[Location]:
+    """Returns a list of Locations that represent legal moves that can be
+    made.
+    """
+
+    legal_moves = []
+    for row in range(1, board.size+1):
+        for column in range(1, board.size+1):
+            location = Location(row, column)
+            if is_legal_move_for_other_player(board, location):
+                legal_moves.append(location)
+    return legal_moves

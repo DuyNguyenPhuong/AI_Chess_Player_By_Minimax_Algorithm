@@ -94,7 +94,7 @@ class MinimaxPlayer(Player):
                 v2 = value
             if v2 > v:
                 v, new_move = v2, move
-        return v2, new_move
+        return v, new_move
 
     def min_value(self, depth, board):
         # Value of the Node
@@ -115,7 +115,7 @@ class MinimaxPlayer(Player):
                 v2 = value
             if v2 < v:
                 v, new_move = v2, move
-        return v2, new_move
+        return v, new_move
 
 
 def is_legal_move_for_other_player(board, location) -> bool:
