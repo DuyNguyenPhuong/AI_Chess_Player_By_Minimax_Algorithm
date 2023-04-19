@@ -77,7 +77,12 @@ class MctsNode:
         and also for making the final choice on which move to make.
         """
 
-        raise NotImplementedError("You must implement this method")
+        """
+        My Implementation: I have finsihed this function
+        """
+
+        parent = self.parent
+        return parent.wins_for_this_player/parent.total_games_for_this_player
 
     def get_UCB_weight_from_parent_perspective(self) -> float:
         """Weight from the UCB formula for this node, when used by its parent
@@ -88,6 +93,10 @@ class MctsNode:
         You will need to use this as part of the selection phase when doing
         playouts.
         """
+        parent = self.parent
+
+        UCB_weight = parent.wins_for_this_player / \
+            parent.total_games_for_this_player * self.ucb_const
 
         raise NotImplementedError("You must implement this method")
 
