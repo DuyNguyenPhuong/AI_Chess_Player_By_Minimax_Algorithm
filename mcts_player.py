@@ -113,8 +113,30 @@ class MctsNode:
         """
 
         """
-        Question: How can we know the terminal node is player 1 or 2
+        Question: How can we know the terminal node is player 1 or 0
         """
+        state = self.state
+        lastPlayer = state.get_active_player()
+
+        if lastPlayer == 1:
+            while (self.parent != None):
+                self.total_games_for_this_player += 1
+                self.wins_for_this_player += outcome
+                self = self.parent
+                if (outcome == 1):
+                    outcome = 0
+                else:
+                    outcome = 1
+        else:
+            addition_number_of_win_for_player_1 = 0
+            while (self.parent != None):
+                self.total_games_for_this_player += 1
+                self.wins_for_this_player += addition_number_of_win_for_player_1
+                self = self.parent
+                if addition_number_of_win_for_player_1 == 0:
+                    addition_number_of_win_for_player_1 = 1
+                else:
+                    addition_number_of_win_for_player_1 = 0
 
         # raise NotImplementedError("You must implement this method")
 
@@ -134,21 +156,31 @@ class MctsNode:
         You will undoubtedly want to use helper functions when writing this,
         both some that I've provided, as well as helper functions of your own.
         """
-        for i in range(playouts):
+        while (playouts > 0):
             node, message = self.select()
+            state = node.state
+            if state.is_terminal():
+                outcome = state.value()
+
             if message != "Found Visited":
                 outcome = self.random_play(node)
             else:
                 """
                 Why outcome equal to node's state
                 """
-                outcome = node.state
+                outcome = self.random_play(node)
 
-            self.update_play_count()
-
-        # raise NotImplementedError("You must implement this method")
+            self.update_play_count(outcome)
+            playouts -= 1
 
     def select(self):
+        #    temp_state = self.state
+        #     legal_moves = self.legal_moves
+        #     highest_UCB_value = float("-inf")
+        #     highest_UCB_node = None
+        #     unvisitedChidlren = None
+
+        # while (unvisitedChidlren == None and not temp_state.is_terminal()):
         state = self.state
         legal_moves = self.legal_moves
         highest_UCB_value = float("-inf")
@@ -166,7 +198,8 @@ class MctsNode:
                 UCB_value = unvisitedChild.get_UCB_weight_from_parent_perspective
                 self.children[move, self] = (unvisitedChild, UCB_value)
                 return (unvisitedChild, "Found Visited")
-        return (highest_UCB_node, "Found Highest")
+
+        unvisitedChild, _ = highest_UCB_node.select()
 
     def random_play(self, root: MctsNode):
         temp_state = root.state
