@@ -112,7 +112,11 @@ class MctsNode:
         outcome: +1 for 1st player win, -1 for 2nd player win.
         """
 
-        raise NotImplementedError("You must implement this method")
+        """
+        Question: How can we know the terminal node is player 1 or 2
+        """
+
+        # raise NotImplementedError("You must implement this method")
 
     def choose_move_via_mcts(self, playouts: int) -> Optional[Location]:
         """Select a move by Monte Carlo tree search. Plays playouts random
@@ -130,6 +134,43 @@ class MctsNode:
         You will undoubtedly want to use helper functions when writing this,
         both some that I've provided, as well as helper functions of your own.
         """
-        root = MctsNode()
+        for i in range(playouts):
+            node, message = self.select()
+            if message != "Found Visited":
+                outcome = self.random_play(node)
+            else:
+                """
+                Why outcome equal to node's state
+                """
+                outcome = node.state
 
-        raise NotImplementedError("You must implement this method")
+            self.update_play_count()
+
+        # raise NotImplementedError("You must implement this method")
+
+    def select(self):
+        state = self.state
+        legal_moves = self.legal_moves
+        highest_UCB_value = float("-inf")
+        highest_UCB_node = None
+
+        for move in legal_moves:
+            if (move, self) in self.children:
+                if highest_UCB_value < self.children[move, self][1]:
+                    highest_UCB_value = self.children[move, self][1]
+                    highest_UCB_node = self.children[move, self][0]
+
+            if (move, self) not in self.children:
+                newState = state.make_move(move)
+                unvisitedChild = MctsNode(newState, self, self.ucb_const)
+                UCB_value = unvisitedChild.get_UCB_weight_from_parent_perspective
+                self.children[move, self] = (unvisitedChild, UCB_value)
+                return (unvisitedChild, "Found Visited")
+        return (highest_UCB_node, "Found Highest")
+
+    def random_play(self, root: MctsNode):
+        temp_state = root.state
+        while (temp_state.value != 0):
+            random_move = temp_state.get_randomized_moves()
+            temp_state = temp_state.make_move(random_move)
+        return temp_state.value
