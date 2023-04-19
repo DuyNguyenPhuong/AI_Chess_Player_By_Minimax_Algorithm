@@ -80,9 +80,7 @@ class MctsNode:
         """
         My Implementation: I have finsihed this function
         """
-
-        parent = self.parent
-        return parent.wins_for_this_player/parent.total_games_for_this_player
+        return 1 - self.wins_for_this_player/self.total_games_for_this_player
 
     def get_UCB_weight_from_parent_perspective(self) -> float:
         """Weight from the UCB formula for this node, when used by its parent
@@ -93,12 +91,17 @@ class MctsNode:
         You will need to use this as part of the selection phase when doing
         playouts.
         """
+
+        """
+        My Implementation: I finsished this function
+        """
         parent = self.parent
 
-        UCB_weight = parent.wins_for_this_player / \
-            parent.total_games_for_this_player * self.ucb_const
+        return self.get_UCB_weight_from_parent_perspective() * self.ucb_const * \
+            math.sqrt(math.log(parent.total_games_for_this_player) /
+                      self.total_games_for_this_player)
 
-        raise NotImplementedError("You must implement this method")
+        # raise NotImplementedError("You must implement this method")
 
     def update_play_counts(self, outcome: int) -> None:
         """Updates the total games played from this node, as well as the number
@@ -127,5 +130,6 @@ class MctsNode:
         You will undoubtedly want to use helper functions when writing this,
         both some that I've provided, as well as helper functions of your own.
         """
+        root = MctsNode()
 
         raise NotImplementedError("You must implement this method")
