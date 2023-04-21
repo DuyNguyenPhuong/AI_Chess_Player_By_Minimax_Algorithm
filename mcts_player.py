@@ -156,50 +156,42 @@ class MctsNode:
         You will undoubtedly want to use helper functions when writing this,
         both some that I've provided, as well as helper functions of your own.
         """
+        """
+        My Implementation: I finish the select and expand method. I will look on how to 
+        merge that together
+        """
         while (playouts > 0):
-            node, message = self.select()
+            node, unvisitedChildren = self.select()
             state = node.state
-            if state.is_terminal():
-                outcome = state.value()
-
-            if message != "Found Visited":
-                outcome = self.random_play(node)
+            if state.is_terminal() == False:
+                outcome = self.random_play(unvisitedChildren)
             else:
-                """
-                Why outcome equal to node's state
-                """
-                outcome = self.random_play(node)
-
+                outcome = node.state.value()
             self.update_play_count(outcome)
             playouts -= 1
 
     def select(self):
-        #    temp_state = self.state
-        #     legal_moves = self.legal_moves
-        #     highest_UCB_value = float("-inf")
-        #     highest_UCB_node = None
-        #     unvisitedChidlren = None
-
-        # while (unvisitedChidlren == None and not temp_state.is_terminal()):
-        state = self.state
-        legal_moves = self.legal_moves
+        node = self
         highest_UCB_value = float("-inf")
         highest_UCB_node = None
+        unvisitedChidlren = None
 
-        for move in legal_moves:
-            if (move, self) in self.children:
-                if highest_UCB_value < self.children[move, self][1]:
-                    highest_UCB_value = self.children[move, self][1]
-                    highest_UCB_node = self.children[move, self][0]
+        while (unvisitedChidlren == None and (not node.state.is_terminal())):
+            for move in node.legal_moves:
+                if move in node.children:
+                    if highest_UCB_value < node.children[move][1]:
+                        highest_UCB_value = node.children[move][1]
+                        highest_UCB_node = node.children[move][0]
 
-            if (move, self) not in self.children:
-                newState = state.make_move(move)
-                unvisitedChild = MctsNode(newState, self, self.ucb_const)
-                UCB_value = unvisitedChild.get_UCB_weight_from_parent_perspective
-                self.children[move, self] = (unvisitedChild, UCB_value)
-                return (unvisitedChild, "Found Visited")
-
-        unvisitedChild, _ = highest_UCB_node.select()
+                if move not in node.children:
+                    newState = node.state.make_move(move)
+                    unvisitedChidlren = MctsNode(
+                        newState, node, self.ucb_const)
+                    UCB_value = unvisitedChidlren.get_UCB_weight_from_parent_perspective()
+                    node.children[move] = (unvisitedChidlren, UCB_value)
+                    return (None, unvisitedChidlren)
+            node = highest_UCB_node
+        return (node, unvisitedChidlren)
 
     def random_play(self, root: MctsNode):
         temp_state = root.state
