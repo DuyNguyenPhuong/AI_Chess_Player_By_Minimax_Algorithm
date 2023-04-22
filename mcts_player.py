@@ -80,6 +80,8 @@ class MctsNode:
         """
         My Implementation: I have finsihed this function
         """
+        if self.total_games_for_this_player == 0:
+            return 0
         return 1 - self.wins_for_this_player/self.total_games_for_this_player
 
     def get_UCB_weight_from_parent_perspective(self) -> float:
@@ -97,7 +99,7 @@ class MctsNode:
         """
         parent = self.parent
 
-        return self.get_UCB_weight_from_parent_perspective() * self.ucb_const * \
+        return self.get_win_percentage_if_chosen_by_parent() * self.ucb_const * \
             math.sqrt(math.log(parent.total_games_for_this_player) /
                       self.total_games_for_this_player)
 
@@ -179,15 +181,17 @@ class MctsNode:
         while (unvisitedChidlren == None and (not node.state.is_terminal())):
             for move in node.legal_moves:
                 if move in node.children:
-                    if highest_UCB_value < node.children[move][1]:
-                        highest_UCB_value = node.children[move][1]
+                    temp_node = node.children[move][0]
+                    UCB_value_temp_node = temp_node.get_UCB_weight_from_parent_perspective()
+                    if highest_UCB_value < UCB_value_temp_node:
+                        highest_UCB_value = UCB_value_temp_node
                         highest_UCB_node = node.children[move][0]
 
                 if move not in node.children:
                     newState = node.state.make_move(move)
                     unvisitedChidlren = MctsNode(
                         newState, node, self.ucb_const)
-                    UCB_value = unvisitedChidlren.get_UCB_weight_from_parent_perspective()
+                    UCB_value = 0
                     node.children[move] = (unvisitedChidlren, UCB_value)
                     return (None, unvisitedChidlren)
             node = highest_UCB_node
