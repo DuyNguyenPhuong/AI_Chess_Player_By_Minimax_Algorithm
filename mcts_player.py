@@ -30,7 +30,7 @@ class MctsPlayer(Player):
 
     def __init__(self, playouts, ucb_const):
         self.playouts = playouts
-        self.ucb_const = ucb_const
+        self.ucb_const = math.sqrt(2)
 
     def choose_move(self, board) -> Optional[Location]:
         root = MctsNode(board, None, self.ucb_const)
@@ -82,6 +82,7 @@ class MctsNode:
         """
         if self.total_games_for_this_player == 0:
             return 0
+        # print(1 - self.wins_for_this_player/self.total_games_for_this_player)
         return 1 - self.wins_for_this_player/self.total_games_for_this_player
 
     def get_UCB_weight_from_parent_perspective(self) -> float:
@@ -99,11 +100,12 @@ class MctsNode:
         """
         parent = self.parent
 
+        if (parent.total_games_for_this_player == 0 or self.total_games_for_this_player == 0):
+            return 0
+
         return self.get_win_percentage_if_chosen_by_parent() * self.ucb_const * \
             math.sqrt(math.log(parent.total_games_for_this_player) /
                       self.total_games_for_this_player)
-
-        # raise NotImplementedError("You must implement this method")
 
     def update_play_counts(self, outcome: int) -> None:
         """Updates the total games played from this node, as well as the number
@@ -114,13 +116,10 @@ class MctsNode:
         outcome: +1 for 1st player win, -1 for 2nd player win.
         """
 
-        """
-        Question: How can we know the terminal node is player 1 or 0
-        """
         state = self.state
         lastPlayer = state.get_active_player()
 
-        if lastPlayer == 1:
+        if lastPlayer == 1 and outcome == 1:
             while (self.parent != None):
                 self.total_games_for_this_player += 1
                 self.wins_for_this_player += outcome
@@ -129,18 +128,39 @@ class MctsNode:
                     outcome = 0
                 else:
                     outcome = 1
-        else:
-            addition_number_of_win_for_player_1 = 0
+
+        if lastPlayer == 1 and outcome == -1:
+            outcome = 0
             while (self.parent != None):
                 self.total_games_for_this_player += 1
-                self.wins_for_this_player += addition_number_of_win_for_player_1
+                self.wins_for_this_player += outcome
                 self = self.parent
-                if addition_number_of_win_for_player_1 == 0:
-                    addition_number_of_win_for_player_1 = 1
+                if (outcome == 1):
+                    outcome = 0
                 else:
-                    addition_number_of_win_for_player_1 = 0
+                    outcome = 1
 
-        # raise NotImplementedError("You must implement this method")
+        if lastPlayer == -1 and outcome == -1:
+            outcome = 1
+            while (self.parent != None):
+                self.total_games_for_this_player += 1
+                self.wins_for_this_player += outcome
+                self = self.parent
+                if (outcome == 1):
+                    outcome = 0
+                else:
+                    outcome = 1
+
+        if lastPlayer == -1 and outcome == 1:
+            outcome = 0
+            while (self.parent != None):
+                self.total_games_for_this_player += 1
+                self.wins_for_this_player += outcome
+                self = self.parent
+                if (outcome == 1):
+                    outcome = 0
+                else:
+                    outcome = 1
 
     def choose_move_via_mcts(self, playouts: int) -> Optional[Location]:
         """Select a move by Monte Carlo tree search. Plays playouts random
@@ -162,15 +182,34 @@ class MctsNode:
         My Implementation: I finish the select and expand method. I will look on how to 
         merge that together
         """
+        if playouts == 0:
+            legal_moves = self.state.get_legal_moves()
+            if len(legal_moves) == 0:
+                return None
+            else:
+                return legal_moves[0]
+
         while (playouts > 0):
             node, unvisitedChildren = self.select()
-            state = node.state
-            if state.is_terminal() == False:
-                outcome = self.random_play(unvisitedChildren)
-            else:
+
+            if node != None:
                 outcome = node.state.value()
-            self.update_play_count(outcome)
+                node.update_play_counts(outcome)
+            else:
+                outcome, last_node = self.random_play(unvisitedChildren)
+                last_node.update_play_counts(outcome)
+
             playouts -= 1
+
+        max_UCB_weight_value = float("-inf")
+        max_UCB_weight_move = None
+
+        for move, child in self.children.items():
+            if child[0].get_UCB_weight_from_parent_perspective() > max_UCB_weight_value:
+                max_UCB_weight_value = child[0].get_UCB_weight_from_parent_perspective(
+                )
+                max_UCB_weight_move = move
+        return max_UCB_weight_move
 
     def select(self):
         node = self
@@ -179,6 +218,8 @@ class MctsNode:
         unvisitedChidlren = None
 
         while (unvisitedChidlren == None and (not node.state.is_terminal())):
+            highest_UCB_value = float("-inf")
+            highest_UCB_node = None
             for move in node.legal_moves:
                 if move in node.children:
                     temp_node = node.children[move][0]
@@ -195,11 +236,16 @@ class MctsNode:
                     node.children[move] = (unvisitedChidlren, UCB_value)
                     return (None, unvisitedChidlren)
             node = highest_UCB_node
-        return (node, unvisitedChidlren)
+        return (node, None)
 
     def random_play(self, root: MctsNode):
         temp_state = root.state
-        while (temp_state.value != 0):
-            random_move = temp_state.get_randomized_moves()
+        temp_node = root
+        while (temp_state.value() != 0):
+            random_move = temp_state.get_random_legal_move()
+            if random_move == None:
+                return (temp_state.value(), temp_node)
             temp_state = temp_state.make_move(random_move)
-        return temp_state.value
+            temp_node = MctsNode(temp_state, temp_node, self.ucb_const)
+
+        return (temp_state.value(), temp_node)
