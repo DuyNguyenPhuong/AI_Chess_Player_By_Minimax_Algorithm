@@ -217,39 +217,3 @@ class GameBoard:
             return 1
 
         return -1
-
-    # def is_legal_move_for_other_player()
-
-    # def is_legal_move_for_other_player(self, location) -> bool:
-    #     ''' Returns whether or not move is legal.'''
-    #     row = location.row
-    #     col = location.column
-    #     piece = -self.get_active_player()
-
-    #     # A move cannot be made if a piece is already there.
-    #     if self.grid[row][col] != EMPTY:
-    #         return False
-
-    #     # A move cannot be made if the piece "value" is not red or yellow.
-    #     if piece != YELLOW and piece != RED:
-    #         return False
-
-    #     # Extra restrictions once initial stage is over
-    #     if (self.in_second_stage() and
-    #             self.num_adjacent_friendlies(location, piece) < 2):
-    #         return False
-
-    #     return True
-
-    # def get_legal_moves_for_other_player(self) -> List[Location]:
-    #     """Returns a list of Locations that represent legal moves that can be
-    #     made.
-    #     """
-
-    #     legal_moves = []
-    #     for row in range(1, self.size+1):
-    #         for column in range(1, self.size+1):
-    #             location = Location(row, column)
-    #             if self.is_legal_move_for_other_player(location):
-    #                 legal_moves.append(location)
-    #     return legal_moves
