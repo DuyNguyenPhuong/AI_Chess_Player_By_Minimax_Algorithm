@@ -14,6 +14,7 @@ from game_board import GameBoard, Location
 from typing import Optional
 from player import Player
 import math
+import numpy
 
 
 class MctsPlayer(Player):
@@ -104,7 +105,7 @@ class MctsNode:
             return 0
 
         return self.get_win_percentage_if_chosen_by_parent() + self.ucb_const * \
-            math.sqrt(math.log(parent.total_games_for_this_player) /
+            math.sqrt(numpy.log(parent.total_games_for_this_player) /
                       self.total_games_for_this_player)
 
     def update_play_counts(self, outcome: int) -> None:
@@ -116,60 +117,19 @@ class MctsNode:
         outcome: +1 for 1st player win, -1 for 2nd player win.
         """
 
-        state = self.state
-        lastPlayer = state.get_active_player()
         node = self
 
-        if lastPlayer == 1 and outcome == 1:
-            while (node.parent != None):
-                node.total_games_for_this_player += 1
-                node.wins_for_this_player += outcome
-                node = node.parent
-                if (outcome == 1):
-                    outcome = 0
-                else:
-                    outcome = 1
-                # print(node.get_win_percentage_if_chosen_by_parent(),
-                #       node.total_games_for_this_player, node.wins_for_this_player)
+        while (node.parent != None):
+            if node.state.get_active_player == outcome:
+                node.wins_for_this_player += 1
+            node.total_games_for_this_player += 1
+            node = node.parent
 
-        elif lastPlayer == 1 and outcome == -1:
-            outcome = 0
-            while (node.parent != None):
-                node.total_games_for_this_player += 1
-                node.wins_for_this_player += outcome
-                node = node.parent
-                if (outcome == 1):
-                    outcome = 0
-                else:
-                    outcome = 1
-                # print(node.get_win_percentage_if_chosen_by_parent(),
-                #       node.total_games_for_this_player, node.wins_for_this_player)
-
-        elif lastPlayer == -1 and outcome == -1:
-            outcome = 1
-            while (node.parent != None):
-                node.total_games_for_this_player += 1
-                node.wins_for_this_player += outcome
-                node = node.parent
-                if (outcome == 1):
-                    outcome = 0
-                else:
-                    outcome = 1
-                # print(node.get_win_percentage_if_chosen_by_parent(),
-                #       node.total_games_for_this_player, node.wins_for_this_player)
-
-        elif lastPlayer == -1 and outcome == 1:
-            outcome = 0
-            while (node.parent != None):
-                node.total_games_for_this_player += 1
-                node.wins_for_this_player += outcome
-                node = node.parent
-                if (outcome == 1):
-                    outcome = 0
-                else:
-                    outcome = 1
-                # print(node.get_win_percentage_if_chosen_by_parent(),
-                #       node.total_games_for_this_player, node.wins_for_this_player)
+        node.total_games_for_this_player += 1
+        if (node.state.get_active_player() == outcome):
+            node.wins_for_this_player += 1
+        # node.state.display()
+        # print(node.total_games_for_this_player, "root")
 
     def choose_move_via_mcts(self, playouts: int) -> Optional[Location]:
         """Select a move by Monte Carlo tree search. Plays playouts random
@@ -192,33 +152,41 @@ class MctsNode:
         merge that together
         """
         if playouts == 0:
-            legal_moves = self.state.get_legal_moves()
-            if len(legal_moves) == 0:
-                return None
-            else:
-                return legal_moves[0]
+            legal_moves = self.state.get_random_legal_move()
+            return legal_moves
 
         while (playouts > 0):
             endNode, unvisitedChildren = self.select()
 
             if endNode != None:
                 outcome = endNode.state.value()
+                print("endstate", outcome)
                 endNode.update_play_counts(outcome)
 
             else:
                 outcome, last_node = unvisitedChildren.random_play()
-                # print(last_node.state.display(), "Dis")
-                last_node.update_play_counts(outcome)
+                print("unvisted", outcome)
+                # print(outcome)
 
+                # last_node.state.display()
+                # last_node.parent.state.display()
+                # last_node.parent.parent.state.display()
+                last_node.update_play_counts(outcome)
             playouts -= 1
 
         max_UCB_weight_value = float("-inf")
         max_UCB_weight_move = None
 
         for move, child in self.children.items():
-            if child.get_UCB_weight_from_parent_perspective() > max_UCB_weight_value:
+            if child.get_UCB_weight_from_parent_perspective() >= max_UCB_weight_value:
                 max_UCB_weight_value = child.get_UCB_weight_from_parent_perspective()
                 max_UCB_weight_move = move
+
+        if max_UCB_weight_move == None:
+            move = self.state.get_random_legal_move()
+            # print(move, "hi")
+            return move
+        # self.state.display()
         return max_UCB_weight_move
 
     def select(self):
@@ -227,41 +195,38 @@ class MctsNode:
         highest_UCB_node = None
         unvisitedChidlren = None
 
-        while ((node.state.is_terminal() == False) and unvisitedChidlren == None):
+        while ((node.state.value() == 0)):
+            # print(len(node.legal_moves))
+            # print("get in")
             highest_UCB_value = float("-inf")
             highest_UCB_node = None
             for move in node.legal_moves:
                 if move not in node.children:
+                    # print("unvisited")
                     newState = node.state.make_move(move)
-                    unvisitedChidlren = MctsNode(
+                    unvisitedChidlren = True
+                    node.children[move] = MctsNode(
                         newState, node, self.ucb_const)
-                    node.children[move] = unvisitedChidlren
-
-                    return (None, unvisitedChidlren)
+                    return (None, node.children[move])
 
                 if move in node.children:
                     temp_node = node.children[move]
-                    UCB_value_temp_node = temp_node.get_UCB_weight_from_parent_perspective()
-                    if highest_UCB_value < UCB_value_temp_node:
-                        highest_UCB_value = UCB_value_temp_node
+                    UCB_value_temp = temp_node.get_UCB_weight_from_parent_perspective()
+                    if highest_UCB_value < UCB_value_temp:
+                        # print("get in 11")
+                        highest_UCB_value = UCB_value_temp
                         highest_UCB_node = node.children[move]
-
+                print(highest_UCB_value, "value")
             node = highest_UCB_node
         return (node, None)
 
     def random_play(self):
         temp_state = self.state
         temp_node = self
-        # print(temp_node.state.display(), "hi")
-
         while (temp_node.state.value() == 0):
             random_move = temp_node.state.get_random_legal_move()
-            # if random_move == None:
-            #     # print("Noneee")
-            #     return (temp_state.value(), temp_node)
-            # print(random_move, "Ran")
             temp_state = temp_state.make_move(random_move)
+
             temp_node = MctsNode(temp_state, temp_node, self.ucb_const)
-            print(temp_state.display())
 
         return (temp_state.value(), temp_node)
