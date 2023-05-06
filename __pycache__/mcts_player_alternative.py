@@ -68,6 +68,7 @@ class MctsNode:
         self.legal_moves = self.state.get_legal_moves()
 
         # You may add additional fields if needed below.
+        self.is_expanded = False
 
     def get_win_percentage_if_chosen_by_parent(self) -> float:
         """Gets the win percentage for the current node, from the perspective
@@ -84,7 +85,7 @@ class MctsNode:
         if self.total_games_for_this_player == 0:
             return 0
 
-        return 1 - self.wins_for_this_player/self.total_games_for_this_player
+        return 1 - (self.wins_for_this_player/self.total_games_for_this_player)
 
     def get_UCB_weight_from_parent_perspective(self) -> float:
         """Weight from the UCB formula for this node, when used by its parent
@@ -116,20 +117,13 @@ class MctsNode:
 
         outcome: +1 for 1st player win, -1 for 2nd player win.
         """
-
-        node = self
-
-        while (node.parent != None):
-            if node.state.get_active_player == outcome:
-                node.wins_for_this_player += 1
-            node.total_games_for_this_player += 1
-            node = node.parent
-
-        node.total_games_for_this_player += 1
-        if (node.state.get_active_player() == outcome):
-            node.wins_for_this_player += 1
-        # node.state.display()
-        # print(node.total_games_for_this_player, "root")
+        temp_node = self
+        # Update from final node to the root
+        while (temp_node != None):
+            temp_node.total_games_for_this_player += 1
+            if (temp_node.state.get_active_player() == outcome):
+                temp_node.wins_for_this_player += 1
+            temp_node = temp_node.parent
 
     def choose_move_via_mcts(self, playouts: int) -> Optional[Location]:
         """Select a move by Monte Carlo tree search. Plays playouts random
@@ -148,85 +142,76 @@ class MctsNode:
         both some that I've provided, as well as helper functions of your own.
         """
         """
-        My Implementation: I finish the select and expand method. I will look on how to 
-        merge that together
+        My Implementation: I finsihed. If you increase the difference of playouts --> More clear result
         """
-        if playouts == 0:
-            legal_moves = self.state.get_random_legal_move()
-            return legal_moves
+
+        temp_node = self
+        # Expand Root Node
+        temp_node.expand()
 
         while (playouts > 0):
-            endNode, unvisitedChildren = self.select()
+            # Select
+            final_node, message = self.select()
 
-            if endNode != None:
-                outcome = endNode.state.value()
-                # print("endstate", outcome)
-                endNode.update_play_counts(outcome)
+            # Stimulation
+            if (message == "Terminal"):
+                outcome = final_node.state.value()
+            elif (message == "Unexpanded"):
+                final_node.expand()
+                outcome = final_node.random_play()
 
-            else:
-                outcome, last_node = unvisitedChildren.random_play()
-                # print("unvisted", outcome)
-                # print(outcome)
+            # Update Play count
+            final_node.update_play_counts(outcome)
 
-                # last_node.state.display()
-                # last_node.parent.state.display()
-                # last_node.parent.parent.state.display()
-                last_node.update_play_counts(outcome)
             playouts -= 1
 
-        max_UCB_weight_value = float("-inf")
-        max_UCB_weight_move = None
+        # Choose move with highest win percentage
 
-        for child in self.legal_moves:
-            if self.children[child].get_win_percentage_if_chosen_by_parent() >= max_UCB_weight_value:
-                max_UCB_weight_value = self.children[child].get_win_percentage_if_chosen_by_parent(
-                )
-                max_UCB_weight_move = child
+        chosen_Move = None
+        max_win_percentage = float("-inf")
 
-        if max_UCB_weight_move == None:
-            move = self.state.get_random_legal_move()
-            # print(move, "hi")
-            return move
-        # self.state.display()
-        return max_UCB_weight_move
+        for move, child in self.children.items():
+            temp_win_percent = child.get_win_percentage_if_chosen_by_parent()
+            if (temp_win_percent > max_win_percentage):
+                max_win_percentage = temp_win_percent
+                chosen_Move = move
+        return chosen_Move
+
+    def expand(self):
+        for move in self.legal_moves:
+            newState = self.state.make_move(move)
+            self.children[move] = MctsNode(newState, self, self.ucb_const)
+        self.is_expanded = True
 
     def select(self):
-        node = self
-        highest_UCB_value = float("-inf")
-        highest_UCB_node = None
-        unvisitedChidlren = None
+        final_node = None
+        temp_node = self
+        while (final_node == None):
+            max_UCB_node = None
+            max_UCB_value = float("-inf")
+            # If the Current Node is Terminal
+            if temp_node.state.is_terminal():
+                final_node = temp_node
+                return (final_node, "Terminal")
 
-        while ((node.state.value() == 0)):
-            # print(len(node.legal_moves))
-            # print("get in")
-            highest_UCB_value = float("-inf")
-            highest_UCB_node = None
-            for move in node.legal_moves:
-                if move not in node.children:
-                    # print("unvisited")
-                    newState = node.state.make_move(move)
-                    unvisitedChidlren = True
-                    node.children[move] = MctsNode(
-                        newState, node, self.ucb_const)
-                    return (None, node.children[move])
-
-                if move in node.children:
-                    temp_node = node.children[move]
-                    UCB_value_temp = temp_node.get_UCB_weight_from_parent_perspective()
-                    if highest_UCB_value < UCB_value_temp:
-                        # print("get in 11")
-                        highest_UCB_value = UCB_value_temp
-                        highest_UCB_node = node.children[move]
-            node = highest_UCB_node
-        return (node, None)
+            for _, child in temp_node.children.items():
+                # If the children is terminal, return children
+                if (child.is_expanded == False):
+                    final_node = child
+                    return (final_node, "Unexpanded")
+                elif child.is_expanded == True:
+                    # Pick children with highest UCB weight
+                    child_UCB_value = child.get_UCB_weight_from_parent_perspective()
+                    if child_UCB_value >= max_UCB_value:
+                        max_UCB_node = child
+                        max_UCB_value = child_UCB_value
+            # Move to node with highest UCB weight
+            temp_node = max_UCB_node
 
     def random_play(self):
         temp_state = self.state
-        temp_node = self
-        while (temp_node.state.value() == 0):
-            random_move = temp_node.state.get_random_legal_move()
-            temp_state = temp_state.make_move(random_move)
+        while (temp_state.value() == 0):
+            randomMove = temp_state.get_random_legal_move()
+            temp_state = temp_state.make_move(randomMove)
 
-            temp_node = MctsNode(temp_state, temp_node, self.ucb_const)
-
-        return (temp_state.value(), temp_node)
+        return temp_state.value()
