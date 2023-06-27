@@ -13,7 +13,7 @@
 <!-- PROJECT LOGO -->
 <br />
 <div align="center">
-  <h2 align="center">Call Bill Calculator API </h3>
+  <h2 align="center">AI Chess Player By Minimax Algorithm</h3>
 
   <p align="center">
     An API that calculated your phone bill. In country such as Vietnam, call bill are calculated based on the minutes of the phone call!
